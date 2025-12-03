@@ -3,6 +3,7 @@ from random import randrange
 from flask import abort, flash, redirect, render_template, url_for
 
 from . import app, db
+from .dropbox import upload_files_to_dropbox
 from .forms import OpinionForm
 from .models import Opinion
 
@@ -18,7 +19,7 @@ def random_opinion():
 @app.route('/')
 def index_view():
     opinion = random_opinion()
-    if not quantity:
+    if opinion is None:
         abort(500)
     
     return render_template('opinion.html', opinion=opinion)
@@ -32,10 +33,14 @@ def add_opinion_view():
         if Opinion.query.filter_by(text=text).first() is not None:
             flash('Такое мнение уже было оставлено ранее!')
             return render_template('add_opinion.html', form=form)
+        urls = upload_files_to_dropbox(form.images.data)
         opinion = Opinion(
             title=form.title.data, 
             text=text, 
-            source=form.source.data
+            source=form.source.data,
+            # При создании объекта передайте все ссылки 
+            # на изображения в поле images.
+            images=urls
         )
         db.session.add(opinion)
         db.session.commit()
